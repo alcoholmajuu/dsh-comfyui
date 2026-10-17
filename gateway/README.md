@@ -1,33 +1,33 @@
 # dsh-comfyui Gateway
 
-ComfyUIに接続するMCP／RESTサーバーです。GPUマシン側でPython 3.12以上を使って起動します。
-ComfyUI本体とモデルは含みません。
+An MCP/REST server connecting to ComfyUI. Run it on the GPU machine with Python 3.12 or later.
+ComfyUI itself and model files are not included.
 
 ```sh
 uv sync --project gateway
-# gateway/.env.exampleをリポジトリ外にコピーし、設定を編集
+# Copy gateway/.env.example outside the repository and edit its settings
 export DSH_COMFYUI_GATEWAY_ENV_FILE=/absolute/path/to/gateway.env
 npm run gateway:check
 npm run gateway
 ```
 
-Windows PowerShellでは `$env:DSH_COMFYUI_GATEWAY_ENV_FILE='D:\config\gateway.env'` と指定できます。
-Pythonは `gateway/.venv`、または `DSH_COMFYUI_PYTHON` で指定した実行ファイルを使います。
-既定の接続先はComfyUI標準の `http://127.0.0.1:8188`、Gatewayは127.0.0.1:8790に待ち受けます。
-設定ファイルより実行環境の変数を優先します。指定がなければ `gateway/.env` を読みます（Git管理対象外）。
-外部ファイルを明示した場合、ファイルが存在しなければ起動を中止します。
+In Windows PowerShell, use `$env:DSH_COMFYUI_GATEWAY_ENV_FILE='D:\config\gateway.env'`.
+The launcher uses Python from `gateway/.venv`, or the executable specified by `DSH_COMFYUI_PYTHON`.
+The default ComfyUI endpoint is `http://127.0.0.1:8188`; the Gateway listens on `127.0.0.1:8790`.
+Environment variables override configuration-file values. Without an explicit path, the launcher reads `gateway/.env` (ignored by Git).
+If an explicitly selected configuration file does not exist, startup stops.
 
-通常はCloudflare Access JWTを検証します。Managed OAuthの認可・更新はCloudflareと
-DSH側のmcp-remoteが担当します。チーム、アプリのAUDまたは公開ホスト名、許可メールを自身の環境に設定してください。
-認証未設定のMCP／RESTアクセスは拒否します。loopback開発時のみ `GW_DEV_NO_AUTH=1` を指定できます。
-Tunnelの導入、Accessの設定、常駐サービスの登録は利用環境で管理してください。
-既存の個人環境向けWindows運用スクリプトは公開パッケージに含みません。
+The Gateway normally validates Cloudflare Access JWTs. Cloudflare and DSH's mcp-remote handle Managed OAuth authorization and refresh.
+Configure your own team, application AUD or public hostname, and allowed email addresses.
+MCP/REST access is rejected when authentication is not configured. Use `GW_DEV_NO_AUTH=1` only for loopback development.
+Manage Tunnel installation, Access configuration, and persistent services in your own environment.
+Environment-specific Windows operations scripts are not included in the public package.
 
 - MCP: `POST /mcp`
 - REST: `/api/*`
-- ヘルスチェック: `GET /healthz`
-- ワークフロー保存先: `GW_WORKFLOW_DIR`。公開ソースの外に指定することを推奨します。
-- 同名保存: `overwrite:true` が必要。通常の新規保存は競合時に409で拒否します。
+- Health check: `GET /healthz`
+- Workflow storage: `GW_WORKFLOW_DIR`; a directory outside the public source tree is recommended.
+- Overwriting: requires `overwrite:true`. A normal save rejects name collisions with HTTP 409.
 
-組み込みgenerate/edit/inpaintは設定されたQwenモデルと必要なcustom nodeに依存します。
-その他のモデルはrun_workflowとノード定義の検証を使用してください。モデルは自動導入しません。
+Built-in generate/edit/inpaint operations depend on the configured Qwen models and required custom nodes.
+For other models, use `run_workflow` with node-definition validation. Models are not installed automatically.

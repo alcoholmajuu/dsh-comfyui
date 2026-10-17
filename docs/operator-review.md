@@ -1,45 +1,36 @@
-# ComfyUI Operator: Astraレビューへの対応（v0.5）
+# ComfyUI Operator: Astra review follow-up in v0.5
 
-2026-10-18。ユーザー指定のgpt-6-astraによるレビューと修正後の再レビューを実施。
-親Agentが実装・テスト・DSH実機確認を担当。
+On 2026-10-18, the user-requested `gpt-6-astra` review and follow-up review were completed.
+The parent agent handled implementation, tests, and live DSH verification.
 
-| 指摘 | 実装 |
+| Finding | Implementation |
 | --- | --- |
-| AgentはPanelの重複送信防止を通らない | Hostが発行した時刻付きrequestIdで `comfyui_operator_action` を呼ぶ構成。Agent／Panelで同じOperatorRuntimeとActionQueueを利用。raw MCP変更呼び出しはguardで拒否。 |
-| 投入後エラーでjob_idが返らないと再生成し得る | pendingを実行前に永続化。結果不明なら別IDや別変更ツールでも再送・新規変更を拒否。明白な入力エラーはpending前に返す。 |
-| 保存名衝突・edit_workflow(save_as)で上書きできる | 保存直前の検証・名前衝突確認。forceとsave_asは禁止。依頼済みの上書きは専用Actionのoverwrite指定で通し、再確認を増やさない。 |
-| 同じMCP接続を持つ他Agentもrestrictされる | scoped contextツールの定義identityで所属判定。MCP namespaceの存在だけでは判定しない。 |
-| get_jobが無期限に続く | 1ターン6回・5分の確認開始上限、残り時間に合わせたwait、取得エラー後の停止。Panelの確認は別扱い。 |
-| Agentがブラウザ下書きを読めない | 明示的な「下書きをOperatorに共有」。共有時点のグラフ・名前・説明・時刻・revisionをセッションごとに保持。共有後の編集は自動同期しない。 |
-| モデル指定・必要情報の確認が曖昧 | 指定モデル／workflowを優先し、固定Qwenへ勝手に置換しない。質問は不可欠な不足情報のみ。 |
+| Agent calls bypassed the panel's duplicate-submission protection | `comfyui_operator_action` requires a host-issued, timestamped requestId. Agent and panel share OperatorRuntime and ActionQueue. A guard rejects raw MCP mutation calls. |
+| An error after submission without a job_id could cause regeneration | Pending state is persisted before execution. An uncertain result blocks resubmission and new mutations, including through another ID or mutation tool. Obvious input errors are returned before creating pending state. |
+| Name collisions and `edit_workflow(save_as)` could overwrite workflows | Validation and collision checks run immediately before saving. `force` and `save_as` are prohibited. Already-requested overwrites use the dedicated action's overwrite flag without another confirmation. |
+| Other agents using the same MCP connection could be restricted | Membership is determined by the scoped context tool's definition identity, not merely the presence of an MCP namespace. |
+| `get_job` polling could continue indefinitely | Starting checks is bounded to six calls and five minutes per turn. Wait duration respects remaining time; retrieval errors stop polling. Panel polling is separate. |
+| The agent could not read browser drafts | Explicit draft sharing through the Studio “Share draft with Operator” button stores a per-session snapshot of the graph, name, description, time, and revision. Later edits do not synchronize automatically. |
+| Model selection and requests for missing information were ambiguous | Explicit model/workflow choices take priority. The agent must not silently substitute the built-in Qwen path. Questions are limited to indispensable missing information. |
 
-再レビューで追加された次の3点も修正し、Astraが差分で反映を確認した。
+Three additional findings from the follow-up review were fixed, and Astra confirmed the changes in the diff:
 
-- 保存名の末尾空白・拡張子・重複拡張子・大小文字を含む衝突。正規化した名前を送信し、比較も正規化する。Windowsの大小文字非区別を考慮して比較を保守的にする。
-- `import_image` もサーバー入力フォルダを変更するため、保護対象へ移した。
-- 必須・型・enum・範囲・配列長・空promptなどの明白な入力ミスを、永続pendingを作る前に検査する。
+- Name collisions involving trailing whitespace, extensions, duplicate extensions, or letter case: submitted names and comparisons are normalized, with conservative handling of Windows case-insensitivity.
+- `import_image` was added to protected mutations because it changes the server's input directory.
+- Obvious input errors, including missing required values, types, enums, ranges, array lengths, and empty prompts, are checked before persisting pending state.
 
-## 実機で見つかった追加修正
+## Additional fixes from live verification
 
-最初の共有下書き読み取りでは、旧ジョブにworkflowNameがなく、旧pendingにoriginがない場合に
-返却値へundefinedが混じり、DSHのlossless JSON検査に拒否された。テストを停止して修正し、
-Hostと同じJSON厳格性をmockでも検査する回帰テストを追加した。
+The first shared-draft read encountered older jobs without workflowName and older pending records without origin. These introduced undefined values into the response, which DSH's lossless JSON validation rejected. Testing stopped while this was fixed. Regression mocks now enforce the host's JSON strictness.
 
-さらにツールエラーの繰り返しを止めるため、1ターンにモデルからのツール呼び出しで
-2回エラーが発生するとpre-stepで以後の自動ステップを拒否する。途中の成功した読み取りでは
-このエラー予算をリセットしない。新しいユーザーメッセージで予算をリセットする。
+To stop repeated tool failures, the pre-step hook rejects further automatic steps after two model-initiated tool errors in a turn. Successful reads between errors do not reset this budget; a new user message does.
 
-修正後、DSHの実tool/call・tool/resultでcontextツール成功を確認（seq222/223）。
-Operatorはstudio-demo-512・11ノード・noise_seed42を実出力に基づいて報告し、8秒で完了した。
-同じrequest/headerに19ツール（MCP16、Operator補助2、質問1）だけが公開されていることも確認。
-実機では共有と読み取りのみ行い、生成・サーバーワークフロー保存・削除・VRAM解放は行っていない。
+After the fix, real DSH tool/call and tool/result events confirmed successful context retrieval (seq222/223). Based on actual output, the Operator reported studio-demo-512, 11 nodes, and noise_seed42, completing in eight seconds. The same request/header exposed only 19 tools: 16 MCP tools, two Operator helpers, and one question tool.
+This live test covered sharing and reading only; it did not generate images, save or delete server workflows, or free VRAM.
 
-## 残る境界
+## Remaining boundaries
 
-- 上書きの依頼内容はAgentの指示で扱い、Hostは明示されたoverwriteフラグと衝突・検証を実装上の条件にする。
-- pendingの照合済み指定はStudioの利用者操作のみ。結果が成功したと推測して記録し直さず、
-  acknowledgedとして保持する。古いIDは再実行できず、保持上限で整理する場合も失効判定を残す。
-- ComfyUI側の「投入後にjob_idなしエラーになる」問題そのものはこのPlugin更新では変更していない。
-  その場合の再送を止めることで扱う。
-- 実GPUを使う生成、長時間ジョブ、認証切れ・キャンセルを含む全組合せの実機試験は未実施。
-  書込保護と失敗分岐は回帰テストで検証している。
+- Agent instructions interpret the user's overwrite request. The host enforces the explicit overwrite flag, collision checks, and validation.
+- Only a user action in Studio can acknowledge pending reconciliation. The record is retained as acknowledged rather than rewritten as an inferred success. Old IDs cannot be rerun, and invalidation evidence remains when retention limits prune records.
+- This plugin update did not change ComfyUI's underlying possibility of an error after submission without a job_id. It handles that uncertainty by stopping resubmission.
+- This review did not cover every combination of real GPU generation, long-running jobs, expired authentication, and cancellation in live testing. Regression tests cover write protection and failure branches. These are the limits of the v0.5 review, not a claim that later releases received no GPU smoke tests.

@@ -8,7 +8,7 @@
       config:
         id: comfyui-operator
         name: ComfyUI Operator
-        description: 設定されたComfyUI MCPに接続し、画像生成・編集・ComfyUIワークフロー操作を行います。
+        description: Connect to your configured ComfyUI MCP to generate and edit images and manage ComfyUI workflows.
         order: 30
         plugins:
           - id: comfyui-operator-scope

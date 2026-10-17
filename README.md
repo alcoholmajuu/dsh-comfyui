@@ -1,90 +1,90 @@
 # dsh-comfyui
 
-DSHのチャットでComfyUIを操作し、生成画像の確認とワークフローの調整を同じ画面で進められるPluginです。専用のComfyUI Operator、右パネルのStudio、OAuth接続に対応したMCP／REST Gatewayをまとめています。ComfyUI本体とモデルは別途必要です。
+Operate ComfyUI from DSH chat, review generated images, and adjust workflows in the same window. This plugin bundles a dedicated **ComfyUI Operator**, the **Studio** side panel, and a self-hosted **MCP/REST Gateway** that supports OAuth connections. You will need a working ComfyUI installation and models separately.
 
-チャットで作例の説明や調整方針を相談しながら、右パネルで成果物を確認できます。
+Discuss a result or the next adjustment in chat while reviewing images in the right-hand panel.
 
-![チャットとStudioで生成画像を確認](docs/images/chat-and-results.jpg)
+![DSH chat alongside generated images in ComfyUI Studio](docs/images/chat-and-results.jpg)
 
-API Graphはホイールで拡大縮小、空白のドラッグで移動できます。ノード定義に基づく入力欄から、プロンプト・seed・サイズなどを調整できます。
+Use the mouse wheel to zoom the API Graph and drag empty space to pan. Input fields are generated from the connected ComfyUI instance's node definitions, allowing you to adjust prompts, seeds, dimensions, and other parameters.
 
-![チャットとAPI Graphを並べて確認](docs/images/chat-and-graph.jpg)
+![DSH chat alongside the API Graph](docs/images/chat-and-graph.jpg)
 
 <details>
-<summary>プロンプト・seedのクイック調整画面</summary>
+<summary>Quick adjustments for prompts, seeds, and other inputs</summary>
 
-![チャットと入力調整を並べて確認](docs/images/chat-and-parameters.jpg)
+![DSH chat alongside workflow input controls](docs/images/chat-and-parameters.jpg)
 
 </details>
 
-スクリーンショットは撮影環境の一例です。GPU名・VRAM・ComfyUIのバージョンは接続先のComfyUIから取得します。モデルは利用者の設定またはワークフローで指定します。Gatewayの同梱による既存サーバーの自動更新・起動は行いません。
+The screenshots show one example environment. GPU name, VRAM, and ComfyUI version come from the connected ComfyUI instance. Models are selected through your configuration or workflow. Bundling the Gateway does not automatically update or start an existing server.
 
-|場所|役割|
-|---|---|
-|`lib/`、`src/`|Operator、Studio、DSH用MCPブリッジ|
-|`gateway/app/`|ComfyUIに接続するPython Gateway|
-|`test/`、`gateway/tests/`|GPUを使用しない回帰テスト|
+| Location | Purpose |
+| --- | --- |
+| `lib/`, `src/` | Operator, Studio, and the DSH MCP bridge |
+| `gateway/app/` | Python Gateway connecting to ComfyUI |
+| `test/`, `gateway/tests/` | Regression tests that do not require a GPU |
 
-## DSHへ導入
+## Install in DSH
 
 ```sh
 npm ci
 npm run build
-# 既存のリモートGatewayに接続する場合
+# Connect to an existing remote Gateway
 npm run connection -- --url https://YOUR-GATEWAY/mcp
 npm run login
 npm run verify
-# DSHの対象profileへ追加
+# Add the plugin to your DSH profile
 ~/.local/bin/dsh plugin --profile desktop add "$PWD"
 ```
 
-接続先の既定値は `http://127.0.0.1:8790/mcp` です。接続設定は
-`~/.dsh/dsh-comfyui/connection.json` に保存します。HTTPS、またはloopback限定HTTPを使用できます。
-`DSH_COMFYUI_MCP_URL`、`DSH_COMFYUI_AUTH_DIR`、`DSH_COMFYUI_NODE` の環境変数で上書きできます。
-認証は既存GatewayのOAuthをmcp-remoteで使用します。Service Tokenの埋め込みは不要です。
+The default endpoint is `http://127.0.0.1:8790/mcp`. Connection settings are stored in
+`~/.dsh/dsh-comfyui/connection.json`. HTTPS and loopback-only HTTP are supported.
+Override settings with `DSH_COMFYUI_MCP_URL`, `DSH_COMFYUI_AUTH_DIR`, or `DSH_COMFYUI_NODE`.
+The bridge uses mcp-remote for the Gateway's existing OAuth flow; no embedded Service Token is required.
 
-DSHの **ComfyUI Operator** を選ぶと、Studio右パネルで成果物、API Graph、ノード定義に基づく入力編集を利用できます。
-Graphはホイールで拡大縮小、空白ドラッグで移動できます。下書きは明示的に共有したものをAgentが読み取ります。
-生成・保存は同じ実行経路を通り、送信IDによる重複防止と、不明な送信結果の照合を行います。
-履歴・プレビュー・確定済み送信記録には件数／容量の上限があります。未確定の操作を履歴整理だけで再送可能にはしません。
+Select **ComfyUI Operator** in DSH to use the Studio panel for results, the API Graph, and node-definition-driven input editing.
+Zoom with the mouse wheel and pan by dragging empty space. The agent can read a browser draft only after you explicitly share it.
+Generation and saving use a shared action path with request-ID deduplication and reconciliation of uncertain submissions.
+History, previews, and finalized submission records have count and/or size limits. Pruning history never makes an unresolved operation safe to resend.
 
-## 同梱Gatewayを使う
+## Run the bundled Gateway
 
-GPUマシンでPython 3.12以上とuvを用意し、[Gatewayの説明](gateway/README.md)に従って設定します。
+Install Python 3.12 or later and uv on the GPU machine, then follow the [Gateway guide](gateway/README.md).
 
 ```sh
 uv sync --project gateway
 mkdir -p "$HOME/.config/dsh-comfyui"
 cp gateway/.env.example "$HOME/.config/dsh-comfyui/gateway.env"
 chmod 600 "$HOME/.config/dsh-comfyui/gateway.env"
-# COMFY_URL、Access設定、許可利用者を編集
+# Edit COMFY_URL, Access settings, and allowed users
 export DSH_COMFYUI_GATEWAY_ENV_FILE="$HOME/.config/dsh-comfyui/gateway.env"
 npm run gateway:check
 npm run gateway
 ```
 
-既定で127.0.0.1:8790に待ち受け、認証未設定ならMCP／RESTへのアクセスを拒否します。
-loopbackでの開発時のみ `GW_DEV_NO_AUTH=1 npm run gateway` を利用できます。
-Cloudflare Access側のOAuth公開設定は別途必要です。Gateway自体はOAuth認可サーバーではありません。
-MCPは `/mcp`、RESTは `/api/*` です。ワークフローの既存名への保存には明示的な `overwrite:true` が必要です。
+By default, the Gateway listens on `127.0.0.1:8790` and rejects MCP/REST access when authentication is not configured.
+For loopback development only, use `GW_DEV_NO_AUTH=1 npm run gateway`.
+Cloudflare Access OAuth exposure must be configured separately; the Gateway itself is not an OAuth authorization server.
+MCP is available at `/mcp` and REST at `/api/*`. Saving over an existing workflow requires explicit `overwrite:true`.
 
 ```sh
-npm run verify:discovery # 初期化・ツール一覧だけを確認、GPUへの照会なし
-npm test               # PluginとGatewayの回帰テスト
+npm run verify:discovery # Initialize and list tools without querying the GPU
+npm test                # Plugin and Gateway regression tests
 ```
 
-## 公開・配布
+## Distribution
 
-接続先・認証・保存データはリポジトリ外で管理します。[設定一覧](docs/configuration.md)を参照してください。
-開発用チェックアウトの過去履歴には環境固有情報が含まれる場合があるため、公開には履歴なしのexportを使用します。
+Keep connection settings, authentication, and runtime data outside the repository. See [configuration](docs/configuration.md).
+To prepare a clean source distribution, export only the allowlisted files without Git history.
 
 ```sh
 npm run release:check
 npm run release:export -- /absolute/path/to/dsh-comfyui-public
 ```
 
-exportは許可したソースだけをコピーし、Git履歴・個人設定・認証キャッシュ・画像・ログ・依存環境を含めません。
-出力先が存在する場合は上書きせず停止します。GitHub公開やnpmへのアップロードは行いません。
+The export excludes Git history, personal settings, authentication caches, runtime images, logs, and installed dependencies.
+It stops if the destination already exists. It does not publish to GitHub or npm.
 
-ライセンスは [MIT](LICENSE)。第三者由来の処理の帰属・ライセンスは [NOTICE](NOTICE) と
-[参考実装](docs/prior-art.md)を参照してください。ComfyUI・モデル・custom nodeのライセンスは別途確認してください。
+Licensed under [MIT](LICENSE). See [NOTICE](NOTICE) and [prior art](docs/prior-art.md) for third-party attribution and licenses.
+ComfyUI, models, and custom nodes have their own licenses.

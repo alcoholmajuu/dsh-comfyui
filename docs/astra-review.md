@@ -1,23 +1,21 @@
-# Astraレビューと反映（v0.4）
+# Astra review and changes in v0.4
 
-2026-10-18、ユーザー指定により `gpt-6-astra` subagentがソースレビューと再レビューを実施。
-親Agentが修正し、Astraが別スクリプトでも再検証した。
+On 2026-10-18, a user-requested `gpt-6-astra` subagent reviewed the source and subsequent fixes.
+The parent agent implemented changes; Astra also verified them with an independent script.
 
-| 指摘 | 対応 |
+| Finding | Change |
 | --- | --- |
-| 保存待ち中に編集すると、保存応答で古い内容へ戻る可能性 | 操作中はワークフロー編集をfieldsetで無効化。表示のパン／ズームは可能。 |
-| 送信履歴を消すだけでは、同じ送信IDが再実行される | 新規IDは時刻＋UUID。保持済みIDを先に照合し、整理済みIDはwatermarkと期限で拒否。旧IDの新規受付も剪定後に停止。 |
-| 不明な送信を整理すると重複実行の判断ができない | pendingは自動削除せず32件で新規送信停止。件数・操作名・日時・IDを画面へ。 |
-| 画像が履歴から外れてもディスクに残り続ける | プレビュー枚数・合計bytesを制限し、状態ファイルatomic rename成功後に孤立画像を整理。初回読込時も適用。 |
-| 自動確認で履歴が埋まる | パネルの同一状態get_jobは追加しない。comfy_statusの自動確認も操作履歴へ追加しない。 |
-| 進行中ジョブや一部ジョブだけが追跡対象から外れる | 進行中を保持順で優先。確認対象は4件ずつ巡回。各ジョブの失敗を個別に扱い、他の確認を続行。 |
-| 巨大なグラフが「全体表示」でも収まらない | Fitの最小倍率を通常倍率と分離し、500ノード相当でも収まることをテスト。Fitからの連続ズームも確認。 |
-| 送信待ち中に同じIDで別入力を渡せる | active Promiseにもfingerprintを保持して不一致を拒否。回帰テスト追加。 |
-| 多くのセッション閲覧でメモリが増える | 未使用セッションをLRU16件に制限し、送信中のstate参照はpinで保護。 |
+| Editing during a pending save could allow the response to restore stale content | A fieldset disables workflow editing during operations. View panning and zooming remain available. |
+| Clearing submission history could allow the same request ID to run again | New IDs use a timestamp and UUID. Retained IDs are checked first; pruned IDs are rejected using a watermark and expiry. New acceptance of legacy IDs also stops after pruning. |
+| Pruning uncertain submissions could erase deduplication evidence | Pending records are never automatically deleted. New submissions stop at 32 pending records. The UI shows counts, operation names, timestamps, and IDs. |
+| Images removed from history could remain on disk indefinitely | Preview count and total bytes are bounded. Orphaned images are pruned after an atomic state-file rename succeeds, including on initial load. |
+| Automatic polling could fill the history | Unchanged panel `get_job` results are not appended. Automatic `comfy_status` checks are also excluded from operation history. |
+| Active or less frequently checked jobs could lose tracking | Active jobs receive retention priority. Polling rotates through four jobs at a time; individual failures do not stop the other checks. |
+| Very large graphs could remain clipped after Fit | Fit has a separate minimum scale. Tests cover a graph equivalent to 500 nodes and continuous zooming after Fit. |
+| Different inputs could be submitted under the same ID while an operation was pending | Active promises retain an input fingerprint and reject mismatches. A regression test covers this. |
+| Browsing many sessions could grow memory indefinitely | An LRU bounds unused sessions to 16 entries. Pins protect state references during active submissions. |
 
-Astraの独立チェックでは、異入力の同一ID拒否・40セッション閲覧中の送信状態保護・
-完了後のpin解放と16件以下のキャッシュ・巨大グラフFitからの連続ズームが成功。
-重大な再送防止・保存データの残存問題は見つからなかった。
+Astra's independent checks passed for rejecting different inputs under the same ID, protecting submission state while browsing 40 sessions, releasing pins after completion, keeping the cache at 16 entries or fewer, and continuous zooming after fitting a large graph.
+No major remaining issues were found in duplicate-submission prevention or retained-data cleanup within that review scope.
 
-実機UIは親Agentが確認: ホイールで57%→78%、空白ドラッグでグラフ移動、
-0キーで57%の全体表示へ復帰。ノード位置・配線のドラッグ編集は対象外。
+The parent agent verified the live UI: mouse-wheel zoom from 57% to 78%, panning by dragging empty space, and returning to 57% Fit with the 0 key. Dragging node positions or rewiring connections is outside the supported scope.
