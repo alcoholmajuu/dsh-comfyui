@@ -1,6 +1,23 @@
 # dsh-comfyui
 
-DSHのComfyUI Operator、右パネルのComfyUI Studio、GPU側のMCP／REST Gatewayをまとめたプロジェクトです。ComfyUI本体・モデルは別途必要です。Gatewayの同梱は既存サーバーの自動更新や起動を行いません。
+DSHのチャットでComfyUIを操作し、生成画像の確認とワークフローの調整を同じ画面で進められるPluginです。専用のComfyUI Operator、右パネルのStudio、OAuth接続に対応したMCP／REST Gatewayをまとめています。ComfyUI本体とモデルは別途必要です。
+
+チャットで作例の説明や調整方針を相談しながら、右パネルで成果物を確認できます。
+
+![チャットとStudioで生成画像を確認](docs/images/chat-and-results.jpg)
+
+API Graphはホイールで拡大縮小、空白のドラッグで移動できます。ノード定義に基づく入力欄から、プロンプト・seed・サイズなどを調整できます。
+
+![チャットとAPI Graphを並べて確認](docs/images/chat-and-graph.jpg)
+
+<details>
+<summary>プロンプト・seedのクイック調整画面</summary>
+
+![チャットと入力調整を並べて確認](docs/images/chat-and-parameters.jpg)
+
+</details>
+
+スクリーンショットは撮影環境の一例です。GPU名・VRAM・ComfyUIのバージョンは接続先のComfyUIから取得します。モデルは利用者の設定またはワークフローで指定します。Gatewayの同梱による既存サーバーの自動更新・起動は行いません。
 
 |場所|役割|
 |---|---|
