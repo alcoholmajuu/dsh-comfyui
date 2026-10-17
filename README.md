@@ -56,16 +56,6 @@ npm run verify:discovery # 初期化・ツール一覧だけを確認、GPUへ�
 npm test               # PluginとGatewayの回帰テスト
 ```
 
-## 旧版から移行
-
-旧ソースと既存Gatewayは残したまま移行できます。旧Pluginの登録を削除して新しいディレクトリを追加し、DSHを再起動してください。
-既存のリモートURLは新設定へ明示的に指定してください。既定値はローカルです。
-
-- OAuthキャッシュ: `~/.dsh/comfyui-oauth/` を引き継ぎます。
-- StudioのSession状態: `~/.dsh/comfyui-studio/` を引き継ぎます。
-- OperatorプリセットID、StudioタブID、ブラウザー下書きキーは互換性のため維持しています。
-- 新しいパッケージ名は `@local/dsh-comfyui`、バージョンは0.6.0です。
-
 ## 公開・配布
 
 接続先・認証・保存データはリポジトリ外で管理します。[設定一覧](docs/configuration.md)を参照してください。
